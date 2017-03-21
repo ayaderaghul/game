@@ -63,7 +63,7 @@
 (require plot)
 (plot-new-window? #t)
 
-(define (plot-3EPs equations)
+(define (plot-3EP equations)
   (define (make-surface equation color label)
     (define parameters (map car equation))
     (surface3d (lambda (x y) (+ (first parameters)
@@ -84,7 +84,7 @@
                       (* (second parameters) x)))
             0 1 #:color color #:label label))
 
-(define (plot-2EPs equations)
+(define (plot-2EP equations)
   (plot (map EP
              equations
              (list 'blue 'red)
@@ -101,31 +101,33 @@
   (list
    (function
     (lambda (x) (+ 1))
-    0 threshold #:color color)
+    0 threshold #:color color #:width 2)
    (function
     (lambda (x) (+ 0))
-    threshold 1 #:color color)
+    threshold 1 #:color color #:width 2)
    (inverse
     (lambda (x) (+ threshold))
-    0 1 #:color color #:label label)))
+    0 1 #:color color #:label label #:width 2)))
 
 (define (q=1 threshold color label)
   (list
    (inverse
     (lambda (x) (+ 1))
-    0 threshold #:color color)
+    0 threshold #:color color #:width 2)
    (inverse
     (lambda (x) (+ 0))
-    threshold 1 #:color color)
+    threshold 1 #:color color #:width 2)
    (function
     (lambda (x) (+ threshold))
-    0 1 #:color color #:label label)))
+    0 1 #:color color #:label label #:width 2)))
 
 (define (plot-BRs equations1 equations2)
   (define threshold1 (EPs1>EPs2 equations1))
   (define threshold2 (EPs1>EPs2 equations2))
   (plot
-   (append
+   (list*
+    (vector-field (lambda (x y) (vector (- 3 (* 4 y)) (- 1 (* 2 x)))) #:color 'blue)
     (p=1 threshold1 'brown "BR1")
-    (q=1 threshold2 'purple "BR2"))
+    (q=1 threshold2 'purple "BR2")
+    )
     #:x-label "q" #:y-label "p"))
