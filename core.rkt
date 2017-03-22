@@ -100,25 +100,25 @@
 (define (p=1 threshold color label)
   (list
    (function
-    (lambda (x) (+ 1))
+    (lambda (x) 1)
     0 threshold #:color color #:width 2)
    (function
-    (lambda (x) (+ 0))
+    (lambda (x) 0)
     threshold 1 #:color color #:width 2)
    (inverse
-    (lambda (x) (+ threshold))
+    (lambda (x) threshold)
     0 1 #:color color #:label label #:width 2)))
 
 (define (q=1 threshold color label)
   (list
    (inverse
-    (lambda (x) (+ 1))
+    (lambda (x) 1)
     0 threshold #:color color #:width 2)
    (inverse
-    (lambda (x) (+ 0))
+    (lambda (x) 0)
     threshold 1 #:color color #:width 2)
    (function
-    (lambda (x) (+ threshold))
+    (lambda (x) threshold)
     0 1 #:color color #:label label #:width 2)))
 
 (define (plot-BRs equations1 equations2)
@@ -131,3 +131,45 @@
     (q=1 threshold2 'purple "BR2")
     )
     #:x-label "q" #:y-label "p"))
+
+(define ep1
+  (plot
+   (list
+    (function-interval
+     (lambda (x) (- 2/5 x))
+     (lambda (x) (- -3/5 x))
+     0 1)
+    (inverse-interval
+     (lambda (x) 1/4)
+     (lambda (x) -5/4)
+     0 1))
+   #:x-min 0 #:x-max 1
+   #:y-min 0 #:y-max 1))
+
+(plot3d
+ (list
+  (surface3d (lambda (x y) (- 3/20 y)) 0 1 0 1 #:color 'green)
+  (surface3d (lambda (x y) (- 1 (* 4 x))) 0 1 0 1 #:color 'blue))
+ #:z-min 0 #:z-max 1)
+
+(define (processor f1 f2)
+  (define d (sqrt (+ (sqr f1) (sqr f2))))
+  (if
+   (and (positive? f1) (positive? f2))
+   d
+   (- d)))
+(define (fq1 p1 p2)
+  (define (f1 p1 p2) (- 3/20 p2))
+  (define (f2 p1 p2) (- 1 (* 4 p1)))
+  (processor (f1 p1 p2) (f2 p1 p2)))
+(define (fq2 p1 p2)
+  (define (f1 p1 p2) (- p2 (* 3/5 p1)))
+  (define (f2 p1 p2) (+ p1 p2 -2/5))
+  (processor (f1 p1 p2) (f2 p1 p2)))
+
+(define (plot-VR)
+  (plot
+   (vector-field
+    (lambda (x y) (vector (fq1 x y) (fq2 x y)))
+    0 1 0 1)))
+(plot-VR)
