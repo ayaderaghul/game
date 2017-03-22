@@ -60,6 +60,17 @@
      ))
   (map expected-payoff a))
 
+(define (EPs1-EPs2 2eps)
+  (define epst (transpose 2eps))
+  (for/list ([i epst])
+    (cons
+     (apply - (map car i)) (cdr (first i)))))
+
+(define (solve-inequality equation)
+  (/
+   (car (car equation))
+   (- (car (second equation)))))
+
 (require plot)
 (plot-new-window? #t)
 
@@ -78,26 +89,21 @@
           #:x-label "q1" #:y-label "q2" #:z-label "EP"))
 
 
-(define (EP equation color label)
-  (define parameters (map car equation))
-  (function (lambda (x) (+ (car parameters)
-                      (* (second parameters) x)))
-            0 1 #:color color #:label label))
 
 (define (plot-2EP equations)
-  (plot (map EP
+  (define (make-EP equation color label)
+    (define parameters (map car equation))
+    (function (lambda (x) (+ (car parameters)
+                             (* (second parameters) x)))
+              0 1 #:color color #:label label))
+  (plot (map make-EP
              equations
              (list 'blue 'red)
              (list "s1" "s2"))
         #:x-label "q" #:y-label "EP"))
-(define (EPs1>EPs2 2eps)
-  (define epst (transpose 2eps))
-  (define parameters
-    (for/list ([i epst])
-      (apply - (map car i))))
-  (/ (car parameters) (- (second parameters))))
 
-(define (p=1 threshold color label)
+
+(define (make-BR1 threshold color label)
   (list
    (function
     (lambda (x) 1)
@@ -109,7 +115,7 @@
     (lambda (x) threshold)
     0 1 #:color color #:label label #:width 2)))
 
-(define (q=1 threshold color label)
+(define (make-BR2 threshold color label)
   (list
    (inverse
     (lambda (x) 1)
@@ -121,55 +127,70 @@
     (lambda (x) threshold)
     0 1 #:color color #:label label #:width 2)))
 
-(define (plot-BRs equations1 equations2)
-  (define threshold1 (EPs1>EPs2 equations1))
-  (define threshold2 (EPs1>EPs2 equations2))
+(define (plot-BRs a b)
+  (define EA (expected-payoffs a))
+  (define EB (expected-payoffs b))
+  (match-define (list (cons const1 _) (cons factor1 _)) (EPs1-EPs2 EA))
+  (match-define (list (cons const2 _) (cons factor2 _)) (EPs1-EPs2 EB))
+  (define threshold1 (/ const1 (- factor1)))
+  (define threshold2 (/ const2 (- factor2)))
   (plot
    (list*
-    (vector-field (lambda (x y) (vector (- 3 (* 4 y)) (- 1 (* 2 x)))) #:color 'blue)
-    (p=1 threshold1 'brown "BR1")
-    (q=1 threshold2 'purple "BR2")
+    (vector-field (lambda (x y)
+                    (vector (+ const2 (* factor2 y))
+                            (+ const1 (* factor1 x)))) #:color 'blue)
+    (make-BR1 threshold1 'brown "BR1")
+    (make-BR2 threshold2 'purple "BR2")
     )
     #:x-label "q" #:y-label "p"))
 
-(define ep1
-  (plot
-   (list
-    (function-interval
-     (lambda (x) (- 2/5 x))
-     (lambda (x) (- -3/5 x))
-     0 1)
-    (inverse-interval
-     (lambda (x) 1/4)
-     (lambda (x) -5/4)
-     0 1))
-   #:x-min 0 #:x-max 1
-   #:y-min 0 #:y-max 1))
-
-(plot3d
- (list
-  (surface3d (lambda (x y) (- 3/20 y)) 0 1 0 1 #:color 'green)
-  (surface3d (lambda (x y) (- 1 (* 4 x))) 0 1 0 1 #:color 'blue))
- #:z-min 0 #:z-max 1)
-
 (define (processor f1 f2)
   (define d (sqrt (+ (sqr f1) (sqr f2))))
-  (if
-   (and (positive? f1) (positive? f2))
-   d
-   (- d)))
-(define (fq1 p1 p2)
-  (define (f1 p1 p2) (- 3/20 p2))
-  (define (f2 p1 p2) (- 1 (* 4 p1)))
-  (processor (f1 p1 p2) (f2 p1 p2)))
-(define (fq2 p1 p2)
-  (define (f1 p1 p2) (- p2 (* 3/5 p1)))
-  (define (f2 p1 p2) (+ p1 p2 -2/5))
-  (processor (f1 p1 p2) (f2 p1 p2)))
+  (if (and (positive? f1)
+           (positive? f2))
+      d
+      (- d)))
 
-(define (plot-VR)
+(define (make-fq1 a p1 p2)
+  (define EA (expected-payoffs a))
+  (define s1>s2 (EPs1-EPs2 (take EA 2)))
+  (define s1>s3 (EPs1-EPs2 (list (first EA) (last EA))))
+  (define (make-f1 p1 p2 conditions)
+    (match-define (list c factor1 factor2) (map car conditions))
+    (+ c (* factor1 p1) (* factor2 p2)))
+  (define (f1 p1 p2) (make-f1 p1 p2 s1>s2))
+  (define (f2 p1 p2) (make-f1 p1 p2 s1>s3))
+  (cond
+   [(> (+ p1 p2) 1) 0]
+   [else
+    (local
+     [(define d1 (f1 p1 p2))
+      (define d2 (f2 p1 p2))
+      (define d (sqrt (+ (sqr d1) (sqr d2))))]
+     (if (and (positive? d1)
+              (positive? d2))
+      d (- d)))]))
+
+
+(define (plot-VR a b)
+  (define (fq1 p1 p2) (make-fq1 a p1 p2))
+  (define (fq2 p1 p2) (make-fq1 b p1 p2))
   (plot
    (vector-field
     (lambda (x y) (vector (fq1 x y) (fq2 x y)))
     0 1 0 1)))
-(plot-VR)
+
+(define (roll lst)
+  (append (drop lst 1) (list (first lst))))
+
+(plot-VR P1 (roll P1))
+
+(define sample
+  (plot3d
+   (list
+    (surface3d
+     (lambda (x y) (+ 2 (* -5 x) (* -5 y))) 0 1 0 1 #:color 'green)
+    (surface3d
+     (lambda (x y) (+ 2 (* -8 x) (* 0 y))) 0 1 0 1 #:color 'blue)
+    (surface3d
+     (lambda (x y) 0)))))
