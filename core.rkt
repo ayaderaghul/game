@@ -17,12 +17,14 @@
    [else
     (cons (map first m) (transpose (map rest m)))]))
 
+;; input 2 payoff matrix and combine them
+;; into 1 payoff matrix for the game
 (define (payoffs a b)
   (define bt (transpose b))
-  (define r (length a))
-  (define c (length (first a)))
   (for/list ([i a] [j bt])
     (map cons i j)))
+
+
 
 (define (best-response a)
   (define at (transpose a))
@@ -183,9 +185,9 @@
 (define (roll lst)
   (append (drop lst 1) (list (first lst))))
 
-(plot-VR P1 (roll P1))
+`(plot-VR P1 (roll P1))
 
-(define sample
+`(define sample
   (plot3d
    (list
     (surface3d
@@ -194,3 +196,40 @@
      (lambda (x y) (+ 2 (* -8 x) (* 0 y))) 0 1 0 1 #:color 'blue)
     (surface3d
      (lambda (x y) 0)))))
+
+;; trying to plot VF of NDG (3 strategies): failing
+
+;; 3 person game
+
+(define (list->matrix lst c)
+  (cond
+   [(empty? lst) '()]
+   [else
+    (cons (take lst c) (list->matrix (drop lst c) c))]))
+
+(define (payoff-matrix lst s1 s2 s3)
+  (list->matrix (list->matrix lst s2) s3))
+
+(define A (payoff-matrix (list -1  -1 0 0 -1 4 0 2) 2 2 2))
+
+(define (combine-payoffs a b c)
+  (list
+   (for/list
+       ([i (first a)]
+        [j (transpose (first b))]
+        [k (first (transpose c))])
+     (map list i j k))
+   (for/list
+        ([l (second a)]
+         [m (transpose (second b))]
+         [n (second (transpose c))])
+     (map list l m n))))
+
+
+
+
+`(plot3d (list
+         (surface3d
+          (lambda (x y) (+ 4 (* -5 x) (* -5 y) (* 5 x y))) 0 1 0 1 #:color 'green)
+         (surface3d
+          (lambda (x y) (+ 2 (* -3 x) (* -3 y) (* 3 x y))) 0 1 0 1 #:color 'blue)))

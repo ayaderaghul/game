@@ -13,5 +13,11 @@ output a report that includes:
 |plot VF|||2 dim|
 
 
+
 7/5/17
 3 person game
+
+| To do          | Done?|Date    | Note |
+|-------------|:-----:|:-----:|----|
+|combine 3 payoff matrix into 1|..|||
+
