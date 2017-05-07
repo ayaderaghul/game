@@ -2,12 +2,16 @@
 
 # abstract
 
-input payoff matrix 
+input payoff matrix
 output a report that includes:
 
-| todo | done? | note |
-|------|*-----*|------|
-| mark pure NEs |v||
-| plot EP  |v||
-| plot BR |v||
-| plot vector field   ||2 dim|
+| To do          | Done?|Date    | Note |
+|-------------|:-----:|:-----:|----|
+|mark pure NEs|v|||
+|plot EP|v|||
+|plot BR|v|||
+|plot VF|||2 dim|
+
+
+7/5/17
+3 person game
