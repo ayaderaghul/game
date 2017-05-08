@@ -225,7 +225,11 @@
          [n (second (transpose c))])
      (map list l m n))))
 
-
+(define (pure-NE a b c)
+  (combine-payoffs
+   (map transpose (map best-response a))
+   (map transpose (map best-response b))
+   (map transpose (map best-response c))))
 
 
 `(plot3d (list
@@ -233,3 +237,97 @@
           (lambda (x y) (+ 4 (* -5 x) (* -5 y) (* 5 x y))) 0 1 0 1 #:color 'green)
          (surface3d
           (lambda (x y) (+ 2 (* -3 x) (* -3 y) (* 3 x y))) 0 1 0 1 #:color 'blue)))
+
+(define (EPs1 a1)
+  (match-define (list pair1 pair2) a1)
+  (define (helper pair)
+    (match-define (list x y) pair)
+    (list (cons y 1) (cons (- x y) "p2")))
+  (list
+   (helper pair1) (helper pair2)))
+
+
+
+(define (EP a)
+  (define (helper e)
+    (match-define (list e1 e2) e)
+    (define (helper1 p)
+      (match-define (list (cons x y) (cons z t)) p)
+      (list (cons x "p3") (cons z "p2.p3")))
+    (define (helper2 p)
+      (match-define (list (cons i k) (cons l m)) p)
+    (list (cons i 1) (cons l "p2") (cons (- i) "p3") (cons (- l) "p2.p3")))
+    (list (helper1 e1) (helper2 e2)))
+  (list
+   (helper (EPs1 (map first a)))
+   (helper (EPs1 (map second a)))))
+
+
+(define (do-pair f pair lst)
+  (cond
+   [(empty? lst) (cons pair lst)]
+   [else
+    (if
+     (equal? (cdr pair) (cdr (first lst)))
+     (cons (cons (f (car pair) (car (first lst))) (cdr pair)) (rest lst))
+     (cons (first lst) (do-pair f pair (rest lst))))]))
+
+(define (do-pairs f lst1 lst2)
+  (cond
+   [(empty? lst1) lst2]
+   [else
+    (do-pairs f (rest lst1) (do-pair f (first lst1) lst2))]))
+
+(define (add-pairs lst1 lst2)
+  (do-pairs + lst1 lst2))
+(define (minus-pairs lst1 lst2)
+  (do-pairs - lst1 lst2))
+
+(define (EPs a)
+  (define (helper e)
+    (cond
+     [(empty? e) '()]
+     [else
+      (cons
+       (apply add-pairs (first e))
+       (helper (rest e)))]))
+  (helper (EP a)))
+
+`(plot3d
+ (list
+  ;(surface3d
+  ; (lambda (x y) (+ 4 (* -5 x) (* -5 y) (* 5 x y))) 0 1 0 1 #:color 'green #:label "h")
+ ; (surface3d
+  ; (lambda (x y) (+ 2 (* -2 x) (* -2 y) (* 2 x y))) 0 1 0 1 #:color 'blue #:label "d")
+  `(surface3d
+   (lambda (x y)
+     ;(if
+      ;(>
+     (+ 2 (* -3 x) (* -3 y) (* 3 x y))
+     ;0)
+      ;1
+      ;0)
+     )
+      0 1 0 1 #:color 'green)
+  (surface3d
+   (lambda (x y)
+     (/ (+ -2 x (*3 y))
+        (- (* 3 y) 3))) 0 1 0 1)
+  (surface3d (lambda (x y) 0))
+  ))
+
+`(plot3d
+ (surface3d
+  (lambda (x y)
+    (if (> y 1/2) 0 1)) 0 1 0 1))
+
+(plot
+ (list
+  (function
+   (lambda (x)
+     (/ (- 2 (* 3 x))
+        (- 3 (* 3 x))))
+   0 1)
+  )
+ #:x-max 1 #:y-max 1
+ #:x-min 0 #:y-min 0)

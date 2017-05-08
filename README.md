@@ -19,5 +19,6 @@ output a report that includes:
 
 | To do          | Done?|Date    | Note |
 |-------------|:-----:|:-----:|----|
-|combine 3 payoff matrix into 1|..|||
+|solve pure NEs|v|||
+|plot EP in 3 dim|..|||
 
