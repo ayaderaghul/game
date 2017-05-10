@@ -1,31 +1,73 @@
+(require plot)
+(plot-new-window? #t)
+
 ;;     t1   t2
 ;; s1
 ;; s2
 
-(define (payoff lst r c)
+;; G2: 2 player game
+(define (list->matrix lst c)
   (cond
    [(empty? lst) '()]
    [else
-    (cons (take lst c) (payoff (drop lst c) r c))]))
+    (cons (take lst c) (list->matrix (drop lst c)  c))]))
 
-(define A (payoff (list 1 3 4 0) 2 2))
-(define B (payoff (list -1 2 0 -1) 2 2))
+;; from one's perspective
 
+;; standard hawk dove game
+(define G2-HD-A (list -1 4 0 2))
+;; 3 player hawk dove game
+(define G3-HD-A (list -8/3 -1 0 0 -1 4 0 4/3))
+;; hawk dove game variation
+(define G3-HD-A1 (list -1  -1 0 0 -1 4 0 2))
+
+;; 2 player game, 3 strategies each
+;; nash demand game
+(define G2-ND-A (list 2 2 2 5 5 0 8 0 0))
+
+(define (payoff-list->matrix payoff-list no-strategies)
+  (foldr
+   (lambda (nxt init)
+           (list->matrix init nxt))
+   payoff-list no-strategies))
+
+
+(define 2HDA (payoff-list->matrix G2-HD-A (list 2)))
+; '((-1 4) (0 2))
+(define 3HDA (payoff-list->matrix G3-HD-A (list 2 2)))
+; '(((-8/3 -1) (0 0)) ((-1 4) (0 4/3)))
+(define 2NDA (payoff-list->matrix G2-ND-A (list 3)))
+; '((2 2 2) (5 5 0) (8 0 0))
+
+;; transpose to other players' point of view
 (define (transpose m)
   (cond
    [(empty? (car m)) '()]
    [else
     (cons (map first m) (transpose (map rest m)))]))
 
-;; input 2 payoff matrix and combine them
-;; into 1 payoff matrix for the game
-(define (payoffs a b)
+;; input different perspectives
+;; output the payoff matrix for the game
+
+(define (combine-2-payoff-matrices a b)
   (define bt (transpose b))
   (for/list ([i a] [j bt])
     (map cons i j)))
 
+(define (combine-3-payoff-matrices a b c)
+  (list
+   (for/list
+       ([i (first a)]
+        [j (transpose (first b))]
+        [k (first (transpose c))])
+     (map list i j k))
+   (for/list
+       ([l (second a)]
+        [m (transpose (second b))]
+        [n (second (transpose c))])
+     (map list l m n))))
 
-
+;; best response, from one's perpective
 (define (best-response a)
   (define at (transpose a))
   (define (best v)
@@ -34,14 +76,116 @@
       (if (= i best-payoff) (number->string i) i)))
   (map best at))
 
-(define (find-pure-NE a b)
-  (payoffs (transpose (best-response a))
-           (transpose (best-response b))))
+;; mark NEs
+(define (mark-pure-NEs-G2 a b)
+  (combine-2-payoff-matrices
+   (transpose (best-response a))
+   (transpose (best-response b))))
 
-;; nash demand game
+(define (mark-pure-NEs-G3 a b c)
+  (combine-3-payoff-matrices
+   (map transpose (map best-response a))
+   (map transpose (map best-response b))
+   (map transpose (map best-response c))))
 
-(define P1 (payoff (list 2 2 2 5 5 0 8 0 0) 3 3))
-(define P2 (payoff (list 2 2 2 5 5 0 8 0 0) 3 3))
+;; expected payoffs
+
+(define q-vector
+  (list
+   (list
+    (cons 1 "q1"))
+   (list
+    (cons 1 1)
+    (cons -1 "q1"))))
+
+;; a constant is a constant cell: (cons 4 1)
+;; a variable cell (cons -1 "q1")
+;; a (row) vector of constants (list -1 4)
+;; or (list (cons -1 1) (cons 4 1))
+;; an element of two cells: (list (cons 1 1) (cons -1 "q1"))
+;; a (column) vector of variables: q-vector
+;; q-vector has two elements, one has one cell, the other has two cells
+
+;; in general, a list of elements
+;; an element is a list of cells
+;; a cell is a pair
+
+(define (do-cell-to-element f cell element)
+  (cond
+   [(empty? element) (cons cell element)]
+   [else
+    (if
+     (equal? (cdr cell) (cdr (first element)))
+     (cons (cons (f (car cell) (car (first element))) (cdr cell)) (rest element))
+     (cons (first element) (do-cell-to-element f cell (rest element))))]))
+
+(define (do-element-to-element f element1 element2)
+  (cond
+   [(empty? element1) element2]
+   [else
+    (do-element-to-element
+     f
+     (rest element1)
+     (do-cell-to-element f (first element1) element2))]))
+
+(define (add-element element1 element2)
+  (do-element-to-element + element1 element2))
+(define (minus-element element1 element2)
+  (do-element-to-element - element1 element2))
+
+(define (multiply-constant-to-cell c cell)
+  (cons (* c (car cell)) (cdr cell)))
+(define (multiply-constant-to-cells c cells)
+  (for/list
+      ([cell cells])
+    (multiply-constant-to-cell c cell)))
+(define (multiply-constant-to-element c cells)
+  (multiply-constant-to-cells c cells))
+(define (multiply-constant-vector-to-variable-vector constants variables)
+  (map multiply-constant-to-element constants variables))
+
+(define (expected-payoff payoffs other-probability)
+  (apply add-element
+         (multiply-constant-vector-to-variable-vector payoffs other-probability)))
+(define (expected-payoffs payoff-matrix other-probability)
+  (for/list
+      ([p payoff-matrix])
+    (expected-payoff  p other-probability)))
+(define (expected-payoff-difference payoff-matrix other-probability)
+  (apply minus-element (expected-payoffs payoff-matrix other-probability)))
+
+(define (calculate-expectation payoff-matrix other-probability)
+  (define EPs (expected-payoffs payoff-matrix other-probability))
+  (cons (apply minus-element EPs)
+        EPs))
+
+
+;; plot
+
+(define (get lst x)
+  (cond
+   [(empty? lst) #false]
+   [else
+    (if (equal? x (cdr (first lst)))
+        (car (first lst))
+        (get (rest lst) x))]))
+
+(define (element->function elements)
+  (for/list
+      ([e elements]
+       [i (length elements)])
+    (function
+     (lambda (x) (+ (get e 1) (* (get e "q1") x)))
+     0 1 #:color (+ 1 i) #:label (number->string i))))
+
+(define (plot-expectation payoff-matrix)
+  (define e (calculate-expectation payoff-matrix q-vector))
+  (define f (element->function e))
+  (plot f #:y-min 0))
+
+
+
+#|
 
 (define (i->qi i)
   (string-append "q" (number->string i)))
@@ -73,8 +217,6 @@
    (car (car equation))
    (- (car (second equation)))))
 
-(require plot)
-(plot-new-window? #t)
 
 (define (plot-3EP equations)
   (define (make-surface equation color label)
@@ -199,37 +341,6 @@
 
 ;; trying to plot VF of NDG (3 strategies): failing
 
-;; 3 person game
-
-(define (list->matrix lst c)
-  (cond
-   [(empty? lst) '()]
-   [else
-    (cons (take lst c) (list->matrix (drop lst c) c))]))
-
-(define (payoff-matrix lst s1 s2 s3)
-  (list->matrix (list->matrix lst s2) s3))
-
-(define A (payoff-matrix (list -1  -1 0 0 -1 4 0 2) 2 2 2))
-
-(define (combine-payoffs a b c)
-  (list
-   (for/list
-       ([i (first a)]
-        [j (transpose (first b))]
-        [k (first (transpose c))])
-     (map list i j k))
-   (for/list
-        ([l (second a)]
-         [m (transpose (second b))]
-         [n (second (transpose c))])
-     (map list l m n))))
-
-(define (pure-NE a b c)
-  (combine-payoffs
-   (map transpose (map best-response a))
-   (map transpose (map best-response b))
-   (map transpose (map best-response c))))
 
 
 `(plot3d (list
@@ -293,13 +404,49 @@
        (helper (rest e)))]))
   (helper (EP a)))
 
+(define (Es1-Es2 a)
+  (apply minus-pairs (EPs a)))
+
+
+(define (plot-plane p)
+  (plot3d
+   (list
+    (surface3d
+     (lambda (x y)
+       (+ (get p 1)
+          (* (get  p "p2") x)
+          (* (get p "p3") y)
+          (* (get p  "p2.p3") x y)))
+     0 1 0 1 #:color 'green)
+    (surface3d (lambda (x y) 0)))))
+
+(define (plot-planes lp)
+  (define surfaces
+    (for/list ([p lp] [c (length lp)])
+      (surface3d
+       (lambda (x y)
+         (+ (get p 1)
+            (* (get  p "p2") x)
+            (* (get p "p3") y)
+            (* (get p  "p2.p3") x y)))
+       0 1 0 1 #:color (+ 1 c) #:label (number->string c))))
+  (plot3d
+   (cons (surface3d (lambda (x y) 0))
+         surfaces)))
+
+
+
+
+
+
+
 `(plot3d
  (list
   ;(surface3d
   ; (lambda (x y) (+ 4 (* -5 x) (* -5 y) (* 5 x y))) 0 1 0 1 #:color 'green #:label "h")
  ; (surface3d
   ; (lambda (x y) (+ 2 (* -2 x) (* -2 y) (* 2 x y))) 0 1 0 1 #:color 'blue #:label "d")
-  `(surface3d
+  (surface3d
    (lambda (x y)
      ;(if
       ;(>
@@ -309,19 +456,36 @@
       ;0)
      )
       0 1 0 1 #:color 'green)
+;  (surface3d
+;   (lambda (x y)
+;     (/ (- 2 (* 3 y)) (- 3 (* 3 y)))) 0 1 0 1 #:color 'blue)
+  ;(surface3d
+  ; (lambda (x y)
+  ;   (/ (+ -2 x (*3 y))
+  ;      (- (* 3 y) 3))) 0 1 0 1)
+  (surface3d (lambda (x y) 0))
+  ) #:x-min 0 #:x-max 1 #:y-min 0 #:y-max 1)
+
+`(plot3d
+ (list
   (surface3d
    (lambda (x y)
-     (/ (+ -2 x (*3 y))
-        (- (* 3 y) 3))) 0 1 0 1)
+     (+ 8/3 (* -11/3 x) (* -11/3 y) (* 2 x y)))
+   0 1 0 1 #:color 'green)
+  (surface3d
+   (lambda (x y)
+     (+ 2 (* -3 x) (* -3 y) (* 3 x y)))
+   0 1  0 1 #:color 'blue)
   (surface3d (lambda (x y) 0))
   ))
+
 
 `(plot3d
  (surface3d
   (lambda (x y)
     (if (> y 1/2) 0 1)) 0 1 0 1))
 
-(plot
+`(plot
  (list
   (function
    (lambda (x)
@@ -331,3 +495,4 @@
   )
  #:x-max 1 #:y-max 1
  #:x-min 0 #:y-min 0)
+|#
