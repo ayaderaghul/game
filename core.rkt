@@ -6,11 +6,22 @@
 ;; s2
 
 ;; G2: 2 player game
+
 (define (list->matrix lst c)
   (cond
    [(empty? lst) '()]
    [else
-    (cons (take lst c) (list->matrix (drop lst c)  c))]))
+    (cons (take lst c) (list->matrix (drop lst c) c))]))
+
+(define (list->atomised-list lst)
+  (for/list ([n lst])
+    (list (cons  n 1))))
+
+(define (atomised-list->matrix pair-list c)
+  (cond
+   [(empty? pair-list) '()]
+   [else
+    (cons (take pair-list c) (list->matrix (drop pair-list c)  c))]))
 
 ;; from one's perspective
 
@@ -31,6 +42,13 @@
            (list->matrix init nxt))
    payoff-list no-strategies))
 
+(define (payoff-list->atomised-matrix payoff-list no-strategies)
+  (define pair-list (list->atomised-list payoff-list))
+  (foldr
+   (lambda (nxt init)
+     (atomised-list->matrix init nxt))
+   pair-list no-strategies))
+
 
 (define 2HDA (payoff-list->matrix G2-HD-A (list 2)))
 ; '((-1 4) (0 2))
@@ -38,6 +56,27 @@
 ; '(((-8/3 -1) (0 0)) ((-1 4) (0 4/3)))
 (define 2NDA (payoff-list->matrix G2-ND-A (list 3)))
 ; '((2 2 2) (5 5 0) (8 0 0))
+
+;; variation of the standard 2 player hawk dove game
+(define 2HDA1 (payoff-list->matrix (list -2 4 0 2) (list 2)))
+(define 2HDA2 (payoff-list->matrix (list -1 4 0 1) (list 2)))
+(define 2HDA3 (payoff-list->matrix (list -2 4 0 1) (list 2)))
+
+(define 3HDA1 (payoff-list->matrix (list -8/3 -1 0 0 -1 4 0 4/3) (list 2 2)))
+(define 3HDA2 (payoff-list->matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
+(define 3HDA3 (payoff-list->matrix (list -8/3 -1 0 0 -1 4 0 2) (list 2 2)))
+
+;; atomised payoff matrix
+(define 2HDAa (payoff-list->atomised-matrix G2-HD-A (list 2)))
+(define 2HDA1a (payoff-list->atomised-matrix (list -2 4 0 2) (list 2)))
+(define 2HDA2a (payoff-list->atomised-matrix (list -1 4 0 1) (list 2)))
+(define 2HDA3a (payoff-list->atomised-matrix (list -2 4 0 1) (list 2)))
+
+(define 3HDAa (payoff-list->atomised-matrix G3-HD-A (list 2 2)))
+(define 3HDA1a (payoff-list->atomised-matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
+(define 3HDA2a (payoff-list->atomised-matrix (list -8/3 -1 0 0 -1 4 0 2) (list 2 2)))
+
+(define 2NDAa (payoff-list->atomised-matrix G2-ND-A (list 3)))
 
 ;; transpose to other players' point of view
 (define (transpose m)
@@ -90,13 +129,18 @@
 
 ;; expected payoffs
 
-(define q-vector
+;; 2 players
+(define (make-probability-vector p)
   (list
    (list
-    (cons 1 "q1"))
+    (cons 1 p))
    (list
     (cons 1 1)
-    (cons -1 "q1"))))
+    (cons -1 p))))
+
+(define q-vector  (make-probability-vector "q"))
+(define p2-vector (make-probability-vector "p2"))
+(define p3-vector (make-probability-vector "p3"))
 
 ;; a constant is a constant cell: (cons 4 1)
 ;; a variable cell (cons -1 "q1")
@@ -133,20 +177,36 @@
 (define (minus-element element1 element2)
   (do-element-to-element - element1 element2))
 
-(define (multiply-constant-to-cell c cell)
-  (cons (* c (car cell)) (cdr cell)))
-(define (multiply-constant-to-cells c cells)
-  (for/list
-      ([cell cells])
-    (multiply-constant-to-cell c cell)))
-(define (multiply-constant-to-element c cells)
-  (multiply-constant-to-cells c cells))
-(define (multiply-constant-vector-to-variable-vector constants variables)
-  (map multiply-constant-to-element constants variables))
+;; to-do: add multiple elements
 
-(define (expected-payoff payoffs other-probability)
+(define (multiply-cell-to-cell cell1 cell2)
+  (match-define (cons head1 tail1) cell1)
+  (match-define (cons head2 tail2) cell2)
+  (cond
+   [(and (string? tail1) (string? tail2))
+    (cons (* head1 head2) (string-append tail1 tail2))]
+   [(and (number? tail1) (string? tail2))
+    (cons (* head1 head2) tail2)]
+   [(and (string? tail1) (number? tail2))
+    (cons (* head1 head2) tail1)]
+   [(and (number? tail1) (number? tail2))
+    (cons (* head1 head2) 1)]
+   [else #f]))
+(define (multiply-cell-to-element cell element)
+  (for/list ([c element])
+    (multiply-cell-to-cell cell c)))
+
+(define (multiply-element-to-element element1 element2)
+  (for*/list ([cell1 element1] [cell2 element2])
+    (multiply-cell-to-cell cell1 cell2)))
+
+(define (multiply-vector-to-vector vector1 vector2)
   (apply add-element
-         (multiply-constant-vector-to-variable-vector payoffs other-probability)))
+         (for/list ([e1 vector1] [e2 vector2])
+           (multiply-element-to-element e1 e2))))
+
+(define (expected-payoff payoff-vector other-probability)
+  (multiply-vector-to-vector payoff-vector other-probability))
 (define (expected-payoffs payoff-matrix other-probability)
   (for/list
       ([p payoff-matrix])
@@ -159,6 +219,25 @@
   (cons (apply minus-element EPs)
         EPs))
 
+(define (expected-payoff-3 payoff-vectors p2 p3)
+  (multiply-vector-to-vector
+   (for/list ([payoff-vector payoff-vectors])
+     (multiply-vector-to-vector payoff-vector p2))
+   p3))
+
+(define (expected-payoffs-3 payoff-matrix p2 p3)
+  (define payoff-vectors-for-each-strategy
+    (transpose payoff-matrix))
+  (for/list
+      ([payoff-vectors payoff-vectors-for-each-strategy])
+    (expected-payoff-3 payoff-vectors p2 p3)))
+(define (expected-payoff-difference-3 payoff-matrix p2 p3)
+  (apply minus-element (expected-payoffs-3 payoff-matrix p2 p3)))
+
+(define (calculate-expectation-3 payoff-matrix p2 p3)
+  (define EPs (expected-payoffs-3 payoff-matrix p2 p3))
+  (cons (apply minus-element EPs) EPs))
+
 
 ;; plot
 
@@ -170,18 +249,74 @@
         (car (first lst))
         (get (rest lst) x))]))
 
-(define (element->function elements)
+(define (vector->function a-vector)
   (for/list
-      ([e elements]
-       [i (length elements)])
+      ([element a-vector]
+       [i (length a-vector)])
     (function
-     (lambda (x) (+ (get e 1) (* (get e "q1") x)))
+     (lambda (x) (+ (get element 1) (* (get element "q") x)))
      0 1 #:color (+ 1 i) #:label (number->string i))))
 
 (define (plot-expectation payoff-matrix)
-  (define e (calculate-expectation payoff-matrix q-vector))
-  (define f (element->function e))
+  (define v (calculate-expectation payoff-matrix q-vector))
+  (define f (vector->function v))
   (plot f #:y-min 0))
+
+;; 3 players
+
+(define (vector->surface a-vector)
+  (cons
+   (surface3d (lambda (x y) 0))
+   (for/list
+       ([element a-vector]
+        [i (length a-vector)])
+     (surface3d
+      (lambda (x y)
+        (+ (get element 1)
+           (* (get element "p2") x)
+           (* (get element "p3") y)
+           (* (get element "p2p3") x y)))
+      0 1 0 1 #:color (+ 1 i) #:label (number->string i)))))
+(define (plot-expectation-3 payoff-matrix)
+  (define v (calculate-expectation-3 payoff-matrix p2-vector p3-vector))
+  (define s (vector->surface v))
+  (plot3d s))
+
+(define (plot-plane p)
+  (plot3d
+   (list
+    (surface3d
+     (lambda (x y)
+       (+ (get p 1)
+          (* (get  p "p2") x)
+          (* (get p "p3") y)
+          (* (get p  "p2p3") x y)))
+     0 1 0 1 #:color 'green)
+    (surface3d (lambda (x y) 0)))))
+
+(define (plot-planes lp)
+  (define surfaces
+    (for/list ([p lp] [c (length lp)])
+      (surface3d
+       (lambda (x y)
+         (+ (get p 1)
+            (* (get  p "p2") x)
+            (* (get p "p3") y)
+            (* (get p  "p2p3") x y)))
+       0 1 0 1 #:color (+ 1 c) #:label (number->string c))))
+  (plot3d
+   (cons (surface3d (lambda (x y) 0))
+         surfaces)))
+
+;;
+
+(match-define (list e0 eh ed) (calculate-expectation-3 3HDAa p2-vector p3-vector))
+(match-define (list e10 e1h e1d) (calculate-expectation-3 3HDA1a p2-vector p3-vector))
+(match-define (list e20 e2h e2d) (calculate-expectation-3 3HDA2a p2-vector p3-vector))
+
+
+
+
 
 
 
@@ -406,36 +541,6 @@
 
 (define (Es1-Es2 a)
   (apply minus-pairs (EPs a)))
-
-
-(define (plot-plane p)
-  (plot3d
-   (list
-    (surface3d
-     (lambda (x y)
-       (+ (get p 1)
-          (* (get  p "p2") x)
-          (* (get p "p3") y)
-          (* (get p  "p2.p3") x y)))
-     0 1 0 1 #:color 'green)
-    (surface3d (lambda (x y) 0)))))
-
-(define (plot-planes lp)
-  (define surfaces
-    (for/list ([p lp] [c (length lp)])
-      (surface3d
-       (lambda (x y)
-         (+ (get p 1)
-            (* (get  p "p2") x)
-            (* (get p "p3") y)
-            (* (get p  "p2.p3") x y)))
-       0 1 0 1 #:color (+ 1 c) #:label (number->string c))))
-  (plot3d
-   (cons (surface3d (lambda (x y) 0))
-         surfaces)))
-
-
-
 
 
 

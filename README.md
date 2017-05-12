@@ -36,10 +36,10 @@ thought there was a bug, but the code actually works fine
 |plot EP in 3 dim|..|||
 |EPs: input a single matrix, output the EP(s1) and EP(s2)|v|||
 |automate plot|v|||
-|change payoff in 2 person game to see the effect||||
+|change payoff in 2 person game to see the effect|v|||
 |2 player game: 2 strategies: calculate EP, plot EP|v|||
-|||||
-|||||
+|2 player game: 3 strategies: cal EP, plot EP|v|||
+|develop a system of pair-based algebra|v|||
 |||||
 
 
