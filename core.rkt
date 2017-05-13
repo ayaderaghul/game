@@ -59,8 +59,8 @@
 
 ;; variation of the standard 2 player hawk dove game
 (define 2HDA1 (payoff-list->matrix (list -2 4 0 2) (list 2)))
-(define 2HDA2 (payoff-list->matrix (list -1 4 0 1) (list 2)))
-(define 2HDA3 (payoff-list->matrix (list -2 4 0 1) (list 2)))
+(define 2HDA2 (payoff-list->matrix (list -1 4 0 0) (list 2)))
+(define 2HDA3 (payoff-list->matrix (list -1 4 1 2) (list 2)))
 
 (define 3HDA1 (payoff-list->matrix (list -8/3 -1 0 0 -1 4 0 4/3) (list 2 2)))
 (define 3HDA2 (payoff-list->matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
@@ -69,12 +69,14 @@
 ;; atomised payoff matrix
 (define 2HDAa (payoff-list->atomised-matrix G2-HD-A (list 2)))
 (define 2HDA1a (payoff-list->atomised-matrix (list -2 4 0 2) (list 2)))
-(define 2HDA2a (payoff-list->atomised-matrix (list -1 4 0 1) (list 2)))
-(define 2HDA3a (payoff-list->atomised-matrix (list -2 4 0 1) (list 2)))
+(define 2HDA2a (payoff-list->atomised-matrix (list -1 4 0 0) (list 2)))
+(define 2HDA3a (payoff-list->atomised-matrix (list -1 4 1 2) (list 2)))
 
 (define 3HDAa (payoff-list->atomised-matrix G3-HD-A (list 2 2)))
 (define 3HDA1a (payoff-list->atomised-matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
 (define 3HDA2a (payoff-list->atomised-matrix (list -8/3 -1 0 0 -1 4 0 2) (list 2 2)))
+(define 3HDA3a (payoff-list->atomised-matrix (list -8/3 -1 1 1 -1 4 1 2) (list 2 2)))
+
 
 (define 2NDAa (payoff-list->atomised-matrix G2-ND-A (list 3)))
 
