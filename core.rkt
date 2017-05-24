@@ -59,23 +59,31 @@
 
 ;; variation of the standard 2 player hawk dove game
 (define 2HDA1 (payoff-list->matrix (list -2 4 0 2) (list 2)))
-(define 2HDA2 (payoff-list->matrix (list -1 4 0 0) (list 2)))
+(define 2HDA2 (payoff-list->matrix (list -1 4 0 3) (list 2)))
 (define 2HDA3 (payoff-list->matrix (list -1 4 1 2) (list 2)))
 
 (define 3HDA1 (payoff-list->matrix (list -8/3 -1 0 0 -1 4 0 4/3) (list 2 2)))
 (define 3HDA2 (payoff-list->matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
 (define 3HDA3 (payoff-list->matrix (list -8/3 -1 0 0 -1 4 0 2) (list 2 2)))
 
+(define 3HDA4 (payoff-list->matrix (list -8/3 -1 -1/2 -1/2 -1 4 -1/2 4/3) (list 2 2)))
+(define 3HDA5 (payoff-list->matrix (list -8/3 -1 1/2 1/2 -1 4 1/2 4/3) (list 2 2)))
+
+
 ;; atomised payoff matrix
 (define 2HDAa (payoff-list->atomised-matrix G2-HD-A (list 2)))
 (define 2HDA1a (payoff-list->atomised-matrix (list -2 4 0 2) (list 2)))
-(define 2HDA2a (payoff-list->atomised-matrix (list -1 4 0 0) (list 2)))
+(define 2HDA2a (payoff-list->atomised-matrix (list -1 4 0 3
+                                                   ) (list 2)))
 (define 2HDA3a (payoff-list->atomised-matrix (list -1 4 1 2) (list 2)))
 
 (define 3HDAa (payoff-list->atomised-matrix G3-HD-A (list 2 2)))
 (define 3HDA1a (payoff-list->atomised-matrix (list -1 -1 0 0 -1 4 0 4/3) (list 2 2)))
 (define 3HDA2a (payoff-list->atomised-matrix (list -8/3 -1 0 0 -1 4 0 2) (list 2 2)))
 (define 3HDA3a (payoff-list->atomised-matrix (list -8/3 -1 1 1 -1 4 1 2) (list 2 2)))
+
+(define 3HDA4a (payoff-list->atomised-matrix (list -8/3 -1 -1/2 -1/2 -1 4 -1/2 4/3) (list 2 2)))
+(define 3HDA5a (payoff-list->atomised-matrix (list -8/3 -1 1/2 1/2 -1 4 1/2 4/3) (list 2 2)))
 
 
 (define 2NDAa (payoff-list->atomised-matrix G2-ND-A (list 3)))
@@ -251,18 +259,24 @@
         (car (first lst))
         (get (rest lst) x))]))
 
-(define (vector->function a-vector)
+(define (vector->function a-vector labels)
   (for/list
       ([element a-vector]
-       [i (length a-vector)])
+       [i (length a-vector)]
+       [l labels])
     (function
      (lambda (x) (+ (get element 1) (* (get element "q") x)))
-     0 1 #:color (+ 1 i) #:label (number->string i))))
+     0 1 #:color (+ 1 i) #:label l)))
 
-(define (plot-expectation payoff-matrix)
-  (define v (calculate-expectation payoff-matrix q-vector))
-  (define f (vector->function v))
-  (plot f #:y-min 0))
+(define (plot-expectation payoff-matrix labels file-name)
+  (define v (rest (calculate-expectation payoff-matrix q-vector)))
+  (define f (vector->function v labels))
+  (plot f #:y-min 0 #:x-label "q" #:y-label "EP" #:out-file file-name))
+
+(plot
+ (list
+  (function (lambda (x) (- 4 (* 5 x))) 0 1 #:color 1)
+  (function (lambda (x) (- 2 x)) 0 1 #:color 2) ) )
 
 ;; 3 players
 
@@ -279,6 +293,7 @@
            (* (get element "p3") y)
            (* (get element "p2p3") x y)))
       0 1 0 1 #:color (+ 1 i) #:label (number->string i)))))
+
 (define (plot-expectation-3 payoff-matrix)
   (define v (calculate-expectation-3 payoff-matrix p2-vector p3-vector))
   (define s (vector->surface v))
@@ -296,6 +311,23 @@
      0 1 0 1 #:color 'green)
     (surface3d (lambda (x y) 0)))))
 
+(define (plot-planes-v lp labels file-name ang alt)
+  (define surfaces
+    (for/list ([p lp] [c (length lp)][l labels])
+      (surface3d
+       (lambda (x y)
+         (+ (get p 1)
+            (* (get  p "p2") x)
+            (* (get p "p3") y)
+            (* (get p  "p2p3") x y)))
+       0 1 0 1 #:color (+ 1 c) #:label l)))
+  (plot3d
+   (cons (surface3d (lambda (x y) 0))
+         surfaces)
+   #:x-label "p1" #:y-label "p2" #:z-label "EP"
+   #:out-file file-name #:angle ang #:altitude alt))
+
+
 (define (plot-planes lp)
   (define surfaces
     (for/list ([p lp] [c (length lp)])
@@ -308,16 +340,75 @@
        0 1 0 1 #:color (+ 1 c) #:label (number->string c))))
   (plot3d
    (cons (surface3d (lambda (x y) 0))
-         surfaces)))
+         surfaces) ))
+;; if p3 runs gets -1/2
+`(plot3d
+ (list
+  (surface3d (lambda (x y) 0) 0 1 0 1 #:color 0)
+  (surface3d
+   (lambda (x y) (+ 8/3 (* -11/3 x) (* -11/3 y) (* 2 x y)))
+   0 1 0 1 #:color 1 #:label "H-D1")
+  (surface3d
+   (lambda (x y) (/ (+ (* 3 x) -8 (* 11 y)) (- (* 6 y) 11)))
+   0 1 0 1 #:color 2 #:label "H-D2")
+  (surface3d
+   (lambda (x y) (/ (+ (* 6 y) -16 (* 19 x)) (- (* 9 x) 19)))
+   0 1 0 1 #:color 3 #:label "H-D3"))
+ #:x-label "p2" #:y-label "p3" #:z-label "p1"
+ #:out-file "BR-3HD-D-.jpg" #:angle 30 #:altitude 60)
+
+;; if p3 runs gets 1/2
+`(plot3d
+ (list
+  (surface3d (lambda (x y) 0) 0 1 0 1 #:color 0)
+  (surface3d
+   (lambda (x y) (+ 8/3 (* -11/3 x) (* -11/3 y) (* 2 x y)))
+   0 1 0 1 #:color 1 #:label "H-D1")
+  (surface3d
+   (lambda (x y) (/ (+ (* 3 x) -8 (* 11 y)) (- (* 6 y) 11)))
+   0 1 0 1 #:color 2 #:label "H-D2")
+  (surface3d
+   (lambda (x y) (/ (+ (* 6 y) -16 (* 25 x)) (- (* 15 x) 25)))
+   0 1 0 1 #:color 3 #:label "H-D3"))
+ #:x-label "p2" #:y-label "p3" #:z-label "p1"
+ #:out-file "BR-3HD-D+.jpg" #:angle 30 #:altitude 60)
+
+
+;; if runs gets 0
+
+`(plot3d
+ (list
+  (surface3d (lambda (x y) 0) 0 1 0 1 #:color 0)
+  (surface3d
+   (lambda (x y) (+ 8/3 (* -11/3 x) (* -11/3 y) (* 2 x y)))
+   0 1 0 1 #:color 1 #:label "H-D1")
+  (surface3d
+   (lambda (x y) (/ (+ (* 3 x) -8 (* 11 y)) (- (* 6 y) 11)))
+   0 1 0 1 #:color 2 #:label "H-D2")
+  (surface3d
+   (lambda (x y) (/ (+ (* 3 y) -8 (* 11 x)) (- (* 6 x) 11)))
+   0 1 0 1 #:color 3 #:label "H-D3"))
+ #:x-label "p2" #:y-label "p3" #:z-label "p1"
+ #:out-file "BR-3HD.jpg" #:angle 30  #:altitude 60)
+
+
 
 ;;
 
-(match-define (list e0 eh ed) (calculate-expectation-3 3HDAa p2-vector p3-vector))
-(match-define (list e10 e1h e1d) (calculate-expectation-3 3HDA1a p2-vector p3-vector))
-(match-define (list e20 e2h e2d) (calculate-expectation-3 3HDA2a p2-vector p3-vector))
+`(match-define (list e0 eh ed) (calculate-expectation-3 3HDAa p2-vector p3-vector))
+`(match-define (list e10 e1h e1d) (calculate-expectation-3 3HDA1a p2-vector p3-vector))
+`(match-define (list e20 e2h e2d) (calculate-expectation-3 3HDA2a p2-vector p3-vector))
+`(match-define (list e30 e3h e3d) (calculate-expectation-3 3HDA3a p2-vector p3-vector))
 
 
 
+;; 3 player 1 population game
+
+`(plot
+ (list
+  (function (lambda (x) (+ (* 7/3 x x) (* -9 x) 4)) 0 1 #:color 'red #:label "EP-H")
+  (function (lambda (x) (+ (* 4/3 x x) (* -8/3 x) 4/3)) 0 1 #:color 'green #:label "EP-D"))
+ #:x-label "pH" #:y-label "EP" #:out-file "EPs-3HDA-1.jpg")
 
 
 
